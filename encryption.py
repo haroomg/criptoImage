@@ -6,13 +6,50 @@ class encryption:
     
     def __init__(self):
         self.__coordinateSet: set[str] = set()
+        self.frame = None
         self.image = None
+        
+        # dictionary with values ​​for the key
+        self.settingKey: dict = {
+            
+            # image
+            "xImage": 0,
+            "yImage": 0,
+            
+            # frame
+            "xFrame": 0,
+            "yFrame": 0,
+            "add": 0,
+            "endChar": 0,
+        }
     
     def __getTemplate(self) -> None:
+    
+        """
+        HEIGHT == y == row
+        WIDTH == x == column
+        """
         
-        # get a random image template
-        HEIGHT, WIDTH, RGB = 255, 255, 3
-        self.image = np.random.randint(0, 256, (HEIGHT, WIDTH, RGB), dtype=np.uint8)
+        HEIGHT, WIDTH, RGB = 256, 256, 3
+        heightImage, widthImage = 720, 1280 
+
+        self.image = np.random.randint(0, 256, (heightImage, widthImage, RGB), dtype=np.uint8)
+        self.frame = np.random.randint(0, 256, (HEIGHT, WIDTH, RGB), dtype=np.uint8)
+        
+        while True:
+        
+            try:
+                yRandon = np.random.randint(0, heightImage)
+                xRandom= np.random.randint(0, widthImage)
+                self.image[yRandon + HEIGHT]
+                self.image[xRandom + WIDTH]
+                
+                self.settingKey["yImage"] = str(yRandon)
+                self.settingKey["xImage"] = str(xRandom)
+                
+                break
+            except:
+                pass
     
     def __getCoordinates(self) -> tuple[int]:
     
@@ -28,16 +65,39 @@ class encryption:
         
         return x, y
     
-    def encrypt(self, message: str, filePath: str): 
+    def __createImage(self, filePath: str) -> None:
+        
+        # We choose an initial position that is in accordance with the position in which it is located.
+        yImage = int(self.settingKey["yImage"])
+        xImage = int(self.settingKey["xImage"])
+        
+        self.image[
+            yImage:yImage + self.frame.shape[0],
+            xImage:xImage + self.frame.shape[1]
+        ] = self.frame
+        
+        if not cv2.imwrite(filePath, self.image):
+            raise ValueError(f"Failed to save the image to {filePath}")
+        
+        return
     
-        # dictionary with values ​​for the key
-        settingKey: dict = {
-            "x": 0,
-            "y": 0,
-            "add":0,
-            "endChar": 0
-        } 
-        # ---
+    def __getImage(self, file: str) -> None:   
+        
+        try:
+            self.image = cv2.imread(file)
+        except:
+            raise ValueError("Error loading file.")
+        
+        yImage = int(self.settingKey["yImage"])
+        xImage = int(self.settingKey["xImage"])
+        
+        self.frame = self.image[
+            yImage:yImage + 256,
+            xImage:xImage + 256
+        ]
+    
+    def encrypt(self, message: str, filePath: str) -> str: 
+    
         
         # we validate that the characters are valid
         messageList: list[int] = [ord(char) for char in message]
@@ -50,67 +110,71 @@ class encryption:
         add = np.random.randint(0, 100)
         while any((char + add) > 255 for char in messageSet):
             add = np.random.randint(0, 100)
-        settingKey["add"] = str(add)
+        self.settingKey["add"] = str(add)
         # ---
         
         # we choose the value that marks the end of the chain
         endChar = np.random.randint(0, 255)
         while endChar in messageSet or (endChar + add) > 255:
             endChar = np.random.randint(0, 255)
-        settingKey["endChar"] = str(endChar)
+        self.settingKey["endChar"] = str(endChar)
         # we add the final value to the list
         messageList.append(endChar)
         # ---
         
-        # get a random image template
+        # get a random image and frame
         self.__getTemplate()
         
         # we choose the first values ​​to start
         x, y = self.__getCoordinates()
-        settingKey["x"] = str(x)
-        settingKey["y"] = str(y)
+        self.settingKey["xFrame"] = str(x)
+        self.settingKey["yFrame"] = str(y)
         # ---
         
         # We start saving the values ​​in each pixel
         for char in messageList:
             nextX, nextY = self.__getCoordinates()
             newChar = char + add
-            self.image[x, y] = [nextX, nextY, newChar]
+            self.frame[x, y] = [nextX, nextY, newChar]
             x, y = nextX, nextY
         # ---
         
         # we save the image and create the key
-        secretKey = "x".join(settingKey.values())
-        if not cv2.imwrite(filePath, self.image):
-            raise ValueError(f"Failed to save the image to {filePath}")
+        secretKey = "x".join(self.settingKey.values())
+        self.__createImage(filePath)
         # ---
         
-        # we restart the set
+        # we reset the class attributes
         self.__coordinateSet = set()
+        
         return secretKey
     
-    def decrypt(self, file: str, key: str):
-    
-        try:
-            image = cv2.imread(file)
-        except:
-            raise ValueError("Error loading file.")
+    def decrypt(self, file: str, key: str) -> str:
         
         disarmKey = key.split("x")
-        settingKey: dict = {
-            "x": int(disarmKey[0]),
-            "y": int(disarmKey[1]),
-            "add":int(disarmKey[2]),
-            "endChar": int(disarmKey[3])
+        self.settingKey: dict = {
+            
+            # image
+            "xImage": int(disarmKey[0]),
+            "yImage": int(disarmKey[1]),
+            
+            # frame
+            "xFrame": int(disarmKey[2]),
+            "yFrame": int(disarmKey[3]),
+            "add": int(disarmKey[4]),
+            "endChar": int(disarmKey[5]),
         }
         
-        x, y = settingKey["x"], settingKey["y"]
-        subtraction = settingKey["add"]
-        endChar = settingKey["endChar"]
+        self.__getImage(file)
+        
+        x, y = self.settingKey["xFrame"], self.settingKey["yFrame"]
+        subtraction = self.settingKey["add"]
+        endChar = self.settingKey["endChar"]
         
         message: list[str] = []
+        count = 0
         while True:
-            nextX, nextY, char = image[x, y]
+            nextX, nextY, char = self.frame[x, y]
             newChar: int = char - subtraction
             
             if newChar != endChar:
@@ -119,12 +183,24 @@ class encryption:
             else:
                 break
             
+            count +=1
+            if count>1000:
+                print("error")
+                break
         return "".join(message)
 
-    def seeImage(self):
+    def seeImage(self) -> None:
         if self.image is not None:
             plt.imshow(self.image)
             plt.axis('off')
             plt.show()
         else:
             raise ValueError("There is not any image.")
+    
+    def seeFrame(self) -> None:
+        if self.image is not None:
+            plt.imshow(self.frame)
+            plt.axis('off')
+            plt.show()
+        else:
+            raise ValueError("There is not any frame.")
