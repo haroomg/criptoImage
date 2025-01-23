@@ -23,7 +23,7 @@ class encryption:
         """
         
         HEIGHT, WIDTH, RGB = 256, 256, 3
-        heightImage, widthImage = 720, 1280 
+        heightImage, widthImage = 800, 800 
 
         self.image = np.random.randint(0, 256, (heightImage, widthImage, RGB), dtype=np.uint8)
         self.frame = np.random.randint(0, 256, (HEIGHT, WIDTH, RGB), dtype=np.uint8)
