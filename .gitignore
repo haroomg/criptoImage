@@ -173,3 +173,4 @@ cython_debug/
 # others to ignore
 image
 data
+files
