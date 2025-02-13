@@ -43,6 +43,8 @@ Decrypts an image file and returns the original message using the specified encr
 
 ## Usage Example
 
+![Encrypted Message Example](img/test.png)
+
 ```python
 # Example usage of the Encryption class
 encryption = Encryption()
